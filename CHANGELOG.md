@@ -1,3 +1,67 @@
+* [v3.18.3](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.18.3):
+  * Auto Download: Fix selecting incorrect episode in archive file
+
+* [v3.18.2](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.18.2):
+  * SubSource: Fix foreign languages
+
+* [v3.18.1](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.18.1):
+  * Fix IMDB ID not found
+
+* [v3.18.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.18.0):
+  * Use the newer InfoTagVideo KODI API (contributed by @kiamvdd)
+
+* [v3.17.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.17.0):
+  * Fix: TV year being pulled incorrectly
+  * Fix: File name issues in both temp and media directories
+  * Fix: Subtitle file missing extension
+  * Fix: Incorrect episode selection when downloaded archive contains multiple subtitles
+  * Fix: Auto-download not working after the first selected episode in the playlist (A4K only works for the first media)
+  * Fix: Subtitle import issue due to "illegal characters"
+  * Improve: determination of subtitle episodes
+  * Improve: results parsing
+  * Feature: Auto-download now copies subtitles next to the video or to a custom location, based on Kodi's subtitle storage mode path
+  * SubSource: Now supports series in "absolute order", as used by some anime websites
+  * SubSource: Fixed issue of duplicated subtitle IDs with different names
+
+* [v3.16.1](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.16.1):
+  * Fix addons.xml.crc  
+
+* [v3.16.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.16.0):
+  * Fix subtitle international characters encoding
+  * Add SubSource
+
+* [v3.15.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.15.0):
+  * Remove Subscene
+  * Add SubDL
+
+* [v3.14.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.14.0):
+  * Handle invalid `VideoPlayer.IMDBNumber` meta
+
+* [v3.13.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.13.0):
+  * Show proper error message of wrong username for OpenSubtitles
+
+* [v3.12.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.12.0):
+  * Fix OpenSubtitles not working for titles with IMDB ID less than 1_000_000
+
+* [v3.11.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.11.0):
+  * Fix auto-selection and add debug logs.
+
+* [v3.10.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.10.0):
+  * Small fix in SDH vs Forced flags checking.
+
+* [v3.9.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.9.0):
+  * Improve SDH and Forced preferences handling.
+
+* [v3.8.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.8.0):
+  * Switch to new OpenSubtitles API.
+    Note: username and password are now mandatory for using OpenSubtitles.
+  * Fixes for Brazilian Portuguese language codes handling.
+
+* [v3.7.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.7.0):
+  * New option to auto-select and enable embedded subtitles (was previously always enabled)
+  * New option to prefer Forced subtitles on auto selection (was previously always enabled)
+  * New option to prefer SDH subtitles on auto selection
+
 * [v3.6.0](https://github.com/newt-sc/a4kSubtitles/releases/tag/service.subtitles.a4ksubtitles%2Fservice.subtitles.a4ksubtitles-3.6.0):
   * Use group of title matches in the results ordering
 

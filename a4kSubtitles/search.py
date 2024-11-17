@@ -3,8 +3,7 @@
 def __auth_service(core, service_name, request):
     service = core.services[service_name]
     response = core.request.execute(core, request)
-    if response.status_code == 200 and response.text:
-        service.parse_auth_response(core, service_name, response.text)
+    service.parse_auth_response(core, service_name, response)
 
 def __query_service(core, service_name, meta, request, results):
     try:
@@ -27,7 +26,7 @@ def __query_service(core, service_name, meta, request, results):
         core.progress_text = core.progress_text.replace(service.display_name, '')
         core.kodi.update_progress(core)
 
-def __add_results(core, results):  # pragma: no cover
+def __add_results(core, results, meta):  # pragma: no cover
     for item in results:
         listitem = core.kodi.create_listitem(item)
 
@@ -87,19 +86,12 @@ def __sanitize_results(core, meta, results):
 
     for result in results:
         temp_dict[result['action_args']['url']] = result
-
-        try:
-            if result['sync'] == 'true':
-                ext = core.os.path.splitext(result['name'])[1]
-                result['name'] = '%s%s' % (meta.filename_without_ext, ext)
-        except: pass
-
         result['name'] = core.utils.unquote(result['name'])
 
     return list(temp_dict.values())
 
 def __apply_language_filter(meta, results):
-    return list(filter(lambda x: x['lang'] in meta.languages, results))
+    return list(filter(lambda x: x and x['lang'] in meta.languages, results))
 
 def __apply_limit(core, all_results, meta):
     limit = core.kodi.get_int_setting('general.results_limit')
@@ -129,7 +121,8 @@ def __prepare_results(core, meta, results):
     release = []
     for group in release_groups:
         release.extend(group)
-    release.extend(['avi', 'mp4', 'mkv', 'ts', 'm2ts', 'mts', 'mpeg', 'mpg', 'mov', 'wmv', 'flv', 'vob'])
+    media_exts = ['avi', 'mp4', 'mkv', 'ts', 'm2ts', 'mts', 'mpeg', 'mpg', 'mov', 'wmv', 'flv', 'vob']
+    release.extend(media_exts)
 
     quality_groups = [
         ['4k', '2160p', '2160', '4kuhd', '4kultrahd', 'ultrahd', 'uhd'],
@@ -187,17 +180,17 @@ def __prepare_results(core, meta, results):
 
     extra = ['extended', 'cut', 'remastered', 'proper']
 
-    filename = core.utils.unquote(meta.filename).lower()
+    filename = core.utils.unquote(meta.filename_without_ext).lower()
     regexsplitwords = r'[\s\.\:\;\(\)\[\]\{\}\\\/\&\€\'\`\#\@\=\$\?\!\%\+\-\_\*\^]'
-    nameparts = core.re.split(regexsplitwords, filename)
+    meta_nameparts = core.re.split(regexsplitwords, filename)
 
-    release_list = [i for i in nameparts if i in release]
-    quality_list = [i for i in nameparts if i in quality]
-    service_list = [i for i in nameparts if i in service]
-    codec_list = [i for i in nameparts if i in codec]
-    audio_list = [i for i in nameparts if i in audio]
-    color_list = [i for i in nameparts if i in color]
-    extra_list = [i for i in nameparts if i in extra]
+    release_list = [i for i in meta_nameparts if i in release]
+    quality_list = [i for i in meta_nameparts if i in quality]
+    service_list = [i for i in meta_nameparts if i in service]
+    codec_list = [i for i in meta_nameparts if i in codec]
+    audio_list = [i for i in meta_nameparts if i in audio]
+    color_list = [i for i in meta_nameparts if i in color]
+    extra_list = [i for i in meta_nameparts if i in extra]
 
     for item in release_list:
         for group in release_groups:
@@ -235,22 +228,72 @@ def __prepare_results(core, meta, results):
                 color_list = group
                 break
 
+    def _filter_name(x):
+        name_diff_ignore = media_exts + quality + codec + audio + color
+        name_diff_ignore += ["multi", 'multiple', 'sub', 'subs', 'subtitle']
+
+        if x.isdigit():
+            x = str(int(x)).zfill(3)
+        elif x.lower() in name_diff_ignore:
+            x = ''
+        return x.lower()
+
+    def _match_numbers(a, b):
+        offset = 0
+        for s in b:
+            s = core.re.sub(r'v[1-4]', "", s)
+            if not s.isdigit():
+                continue
+            elif meta.episode and s.zfill(3) == meta.episode.zfill(3):
+                offset += 0.4
+            elif s in a:
+                offset += 0.2
+
+        return offset
+
     def sorter(x):
         name = x['name'].lower()
         nameparts = core.re.split(regexsplitwords, name)
+
+        # Add episode number to action_args to detect the desired episode later during sub extraction.
+        x['action_args'].setdefault("episodeid", meta.episode.zfill(3) if meta.episode else "")
+
+        cleaned_nameparts = list(filter(len, map(_filter_name, nameparts)))
+        cleaned_file_nameparts = list(filter(len, map(_filter_name, meta_nameparts)))
+        matching_offset = 0
+
+        if meta.is_tvshow:
+            sub_info = core.utils.extract_season_episode(name)
+
+            is_season = sub_info.season and sub_info.season == meta.season.zfill(3)
+            is_episode = sub_info.episode and sub_info.episode == meta.episode.zfill(3)
+
+            # Handle the parsed season and episode.
+            if is_season and not sub_info.episode:
+                matching_offset += 0.6
+            if is_season and is_episode:
+                matching_offset += 0.4
+            elif meta.episode and int(meta.episode) in sub_info.episodes_range:
+                matching_offset += 0.3
+            elif sub_info.season and sub_info.episode:
+                matching_offset -= 0.5
+
+            if matching_offset == 0:
+                matching_offset = _match_numbers(cleaned_file_nameparts, cleaned_nameparts)
 
         return (
             not x['lang'] == meta.preferredlanguage,
             meta.languages.index(x['lang']),
             not x['sync'] == 'true',
-            -sum(i in nameparts for i in quality_list) * 10,
+            -(core.difflib.SequenceMatcher(None, cleaned_file_nameparts, cleaned_nameparts).ratio() + matching_offset),
             -sum(i in nameparts for i in release_list) * 10,
+            -sum(i in nameparts for i in quality_list) * 10,
             -sum(i in nameparts for i in codec_list) * 10,
             -sum(i in nameparts for i in service_list) * 10,
             -sum(i in nameparts for i in audio_list),
             -sum(i in nameparts for i in color_list),
             -sum(i in nameparts for i in extra_list),
-            -core.difflib.SequenceMatcher(None, name, filename).ratio(),
+            -core.difflib.SequenceMatcher(None, filename, name).ratio(),
             -x['rating'],
             not x['impaired'] == 'true',
             x['service'],
@@ -283,11 +326,11 @@ def __wait_threads(core, request_threads):
 
     core.utils.wait_threads(threads)
 
-def __complete_search(core, results):
+def __complete_search(core, results, meta):
     if core.api_mode_enabled:
         return results
 
-    __add_results(core, results)  # pragma: no cover
+    __add_results(core, results, meta)  # pragma: no cover
 
 def __search(core, service_name, meta, results):
     service = core.services[service_name]
@@ -334,7 +377,7 @@ def search(core, params):
         threads.append((auth_thread, search_thread))
 
     if len(threads) == 0:
-        return __complete_search(core, results)
+        return __complete_search(core, results, meta)
 
     core.progress_text = core.progress_text[:-1]
     core.kodi.update_progress(core)
@@ -352,7 +395,7 @@ def search(core, params):
 
             cancellation_token.iscanceled = True
             final_results = __prepare_results(core, meta, results)
-            ready_queue.put(__complete_search(core, final_results))
+            ready_queue.put(__complete_search(core, final_results, meta))
             break
 
     def wait_all_results():
@@ -361,7 +404,7 @@ def search(core, params):
             return
         final_results = __prepare_results(core, meta, results)
         __save_results(core, meta, final_results)
-        ready_queue.put(__complete_search(core, final_results))
+        ready_queue.put(__complete_search(core, final_results, meta))
 
     core.threading.Thread(target=check_cancellation).start()
     core.threading.Thread(target=wait_all_results).start()

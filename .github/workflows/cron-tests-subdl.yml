@@ -1,12 +1,12 @@
-name: API
+name: SubDL
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - '.github/workflows/cron-tests-api.yml'
-  schedule:
-    - cron:  '0 7 * * *'
+  # push:
+  #   branches:
+  #     - master
+  #   paths:
+  #     - '.github/workflows/cron-tests-subdl.yml'
+  # schedule:
+  #   - cron:  '0 7 * * *'
   workflow_dispatch: ~
 
 jobs:
@@ -28,4 +28,4 @@ jobs:
 
     - name: test
       run: |
-        pytest -v ./tests/test_api.py
+        pytest -v -k 'test_subdl' ./tests/test_suite.py

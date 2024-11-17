@@ -27,11 +27,10 @@ def __retry(core, request, response, next, cfscrape, retry=0):
     if retry > 5:
         return None
 
-    if response.status_code in [503, 429, 403]:
-        if response.status_code == 503:
-            core.time.sleep(2)
+    if response.status_code in [502, 503, 429, 409, 403]:
+        if response.status_code in [503, 403]:
             retry = 5
-        if response.status_code == 429:
+        else:
             core.time.sleep(3)
 
         retry += 1
@@ -73,15 +72,19 @@ def execute(core, request, progress=True, session=None):
             response = session.request(**request)
         exc = ''
     except:  # pragma: no cover
-        try:
-            if cfscrape:
+        if cfscrape:
+            try:
                 if not session:
                     session = cloudscraper.create_scraper(interpreter='native')
                 response = session.request(verify=False, **request)
-            else:
-                response = requests.request(verify=False, **request)
-            exc = ''
-        except:  # pragma: no cover
+                exc = ''
+            except:  # pragma: no cover
+                exc = traceback.format_exc()
+                response = lambda: None
+                response.text = ''
+                response.content = ''
+                response.status_code = 500
+        else:
             exc = traceback.format_exc()
             response = lambda: None
             response.text = ''

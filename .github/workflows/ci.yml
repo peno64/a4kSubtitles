@@ -12,7 +12,7 @@ jobs:
       commit: ${{ steps.validate.outputs.commit }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: validate
       id: validate
@@ -21,38 +21,33 @@ jobs:
       run: |
         python3 ./scripts/validate_commit.py
 
-  build:
+  tests:
     runs-on: windows-latest
     needs: validate
     steps:
-    - uses: actions/checkout@v2
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:')"
+    - uses: actions/checkout@v4
+      if: "${{ !startsWith(needs.validate.outputs.commit, 'chore:') }}"
 
     - name: setup-python
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:')"
-      uses: actions/setup-python@v3
+      if: "${{ !startsWith(needs.validate.outputs.commit, 'chore:') }}"
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.11
 
     - name: install
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:')"
+      if: "${{ !startsWith(needs.validate.outputs.commit, 'chore:') }}"
       run: |
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
 
     - name: lint
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:')"
+      if: "${{ !startsWith(needs.validate.outputs.commit, 'chore:') }}"
       run: |
         flake8
 
     - name: test
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:')"
-      run: |
-        coverage run -m pytest -v
-
-    - name: coverage
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:')"
+      if: "${{ !startsWith(needs.validate.outputs.commit, 'chore:') }}"
       env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        A4KSUBTITLES_SUBDL_APIKEY: ${{ secrets.A4KSUBTITLES_SUBDL_APIKEY }}
       run: |
-        coveralls
+        coverage run -m pytest -v -s --log-level=DEBUG

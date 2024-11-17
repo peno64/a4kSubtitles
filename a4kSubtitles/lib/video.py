@@ -13,6 +13,7 @@ from . import logger, cache, utils, request
 __64k = 65536
 __longlong_format_char = 'q'
 __byte_size = struct.calcsize(__longlong_format_char)
+__imdb_id_prefix = 'tt'
 
 def __sum_64k_bytes(file, result):
     range_value = __64k / __byte_size
@@ -273,7 +274,8 @@ def __update_info_from_imdb(core, meta, pagination_token=''):
                 meta.episode = str(result['series']['episodeNumber']['episodeNumber'])
         else:
             meta.tvshow = result['titleText']['text']
-            meta.tvshow_year = str(result['releaseDate']['year'])
+            if meta.tvshow_year == '':
+                meta.tvshow_year = str(result['releaseDate']['year'])
 
             episodes = result['episodes']['result']['edges']
             s_number = int(meta.season)
@@ -292,45 +294,69 @@ def __update_info_from_imdb(core, meta, pagination_token=''):
     except:
         return
 
-def __get_basic_info():
+def __get_basic_info(core):
     meta = utils.DictAsObject({})
+    filename_and_path = ''
 
-    meta.year = xbmc.getInfoLabel('VideoPlayer.Year')
-    meta.season = xbmc.getInfoLabel('VideoPlayer.Season')
-    meta.episode = xbmc.getInfoLabel('VideoPlayer.Episode')
-    meta.tvshow = xbmc.getInfoLabel('VideoPlayer.TVShowTitle')
+    if core.kodi.get_version_major() >= 20:  # The InfoTagVideo API was added in kodi v20
+        video_info = xbmc.Player().getVideoInfoTag()
+
+        meta.year = video_info.getYear()
+        meta.season = video_info.getSeason()
+        meta.episode = video_info.getEpisode()
+        meta.tvshow = video_info.getTVShowTitle()
+
+        meta.title = video_info.getOriginalTitle()
+        if meta.title == '':
+            meta.title = video_info.getTitle()
+
+        meta.imdb_id = video_info.getUniqueID('imdb')
+        filename_and_path = video_info.getFilenameAndPath()
+
+    if not meta.year:
+        meta.year = xbmc.getInfoLabel('VideoPlayer.Year')
+    if not meta.season:
+        meta.season = xbmc.getInfoLabel('VideoPlayer.Season')
+    if not meta.episode:
+        meta.episode = xbmc.getInfoLabel('VideoPlayer.Episode')
+    if not meta.tvshow:
+        meta.tvshow = xbmc.getInfoLabel('VideoPlayer.TVShowTitle')
+
+    if not meta.title:
+        meta.title = xbmc.getInfoLabel('VideoPlayer.OriginalTitle')
+        if meta.title == '':
+            meta.title = xbmc.getInfoLabel('VideoPlayer.Title')
+
+    if not meta.imdb_id:
+        meta.imdb_id = xbmc.getInfoLabel('VideoPlayer.IMDBNumber')
+    if not filename_and_path:
+        filename_and_path = xbmc.getInfoLabel('Player.FilenameAndPath')
+
     meta.tvshow_year = ''
-
-    meta.title = xbmc.getInfoLabel('VideoPlayer.OriginalTitle')
-    if meta.title == '':
-        meta.title = xbmc.getInfoLabel('VideoPlayer.Title')
-
     meta.filename = __get_filename(meta.title)
     meta.filename_without_ext = meta.filename
-    meta.imdb_id = xbmc.getInfoLabel('VideoPlayer.IMDBNumber')
 
-    filename_and_path = xbmc.getInfoLabel('Player.FilenameAndPath')
     if meta.imdb_id == '':
         regex_result = re.search(r'.*(tt\d{7,}).*', filename_and_path, re.IGNORECASE)
         if regex_result:
             meta.imdb_id = regex_result.group(1)
 
-    if meta.season == '':
-        regex_result = re.search(r'.*season=(\d{1,}).*', filename_and_path, re.IGNORECASE)
-        if regex_result:
-            meta.season = regex_result.group(1)
-
-    if meta.episode == '':
-        regex_result = re.search(r'.*episode=(\d{1,}).*', filename_and_path, re.IGNORECASE)
-        if regex_result:
-            meta.episode = regex_result.group(1)
+    if meta.season == '' or meta.episode == '':
+        filename_info = utils.extract_season_episode(meta.filename, zfill=0)
+        filename_path_info = utils.extract_season_episode(filename_and_path, zfill=0)
+        meta.season = meta.season or filename_path_info.season or filename_info.season
+        meta.episode = meta.episode or filename_path_info.episode or filename_info.episode
 
     return meta
 
-def get_meta(core):
-    meta = __get_basic_info()
+def __is_imdb_id(id: str) -> bool:
+    return id.startswith(__imdb_id_prefix)
 
-    if meta.imdb_id == '':
+def get_meta(core):
+    meta = __get_basic_info(core)
+
+    # Depending on the used scraper, the imdb_id returned by Kodi might not actually be an IMDB ID.
+    if meta.imdb_id == '' or not __is_imdb_id(meta.imdb_id):
         cache_key = cache.hash_data(meta)
         imdb_id_cache = cache.get_imdb_id_cache()
         meta.imdb_id = imdb_id_cache.get(cache_key, '')
@@ -397,5 +423,10 @@ def get_meta(core):
         else:
             meta.tvshow_year_thread = threading.Thread(target=__scrape_tvshow_year, args=(core, meta))
             meta.tvshow_year_thread.start()
+
+    try:
+        if len(meta.imdb_id) > 2:
+            meta.imdb_id_as_int = int(meta.imdb_id[2:].lstrip('0'))
+    except: pass
 
     return meta

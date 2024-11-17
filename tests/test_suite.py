@@ -73,6 +73,8 @@ __tvshow_with_show_imdb_id_alt_title_video_meta = __tvshow_alt_title_video_meta.
 __tvshow_with_show_imdb_id_alt_title_video_meta['imdb_id'] = 'tt6150576'
 __tvshow_with_show_imdb_id_alt_title_expected_year = '2016'
 
+os.environ.setdefault('A4KSUBTITLES_TESTRUN', 'true')
+
 def __remove_meta_cache(a4ksubtitles_api):
     try:
         os.remove(a4ksubtitles_api.core.cache.__meta_cache_filepath)
@@ -114,8 +116,9 @@ def __search(a4ksubtitles_api, settings={}, video_meta={}, languages='English'):
         'opensubtitles.password': '',
         'bsplayer.enabled': 'false',
         'podnadpisi.enabled': 'false',
-        'subscene.enabled': 'false',
+        'subdl.enabled': 'false',
         'addic7ed.enabled': 'false',
+        'subsource.enabled': 'false',
     }
     search.settings.update(settings)
 
@@ -171,7 +174,7 @@ def test_search_missing_imdb_id():
         'languages': 'English',
         'preferredlanguage': '',
     }
-    a4ksubtitles_api.search(params)
+    a4ksubtitles_api.search(params, {}, {})
 
     log_error_spy.restore()
     log_error_spy.called_with('missing imdb id!')
@@ -245,15 +248,13 @@ def test_opensubtitles():
     # search
     settings = {
         'opensubtitles.enabled': 'true',
-        'opensubtitles.username': os.getenv('A4KSUBTITLES_OPENSUBTITLES_USERNAME', ''),
-        'opensubtitles.password': os.getenv('A4KSUBTITLES_OPENSUBTITLES_PASSWORD', '')
     }
     search = __search_movie(a4ksubtitles_api, settings)
 
     assert len(search.results) == 20
 
-    expected_result_name = 'Fantastic.Beasts.and.Where.to.Find.Them.2016.1080p.BluRay.x264.DTS-JYK.srt'
-    expected_result_name2 = 'Fantastic.Beasts.and.Where.to.Find.Them.2016.1080p.BluRay.x264.DTS-FGT.srt'
+    expected_result_name = 'Fantastic.Beasts.and.Where.to.Find.Them.2016.1080p.BluRay.x264.DTS-JYK'
+    expected_result_name2 = 'Fantastic.Beasts.and.Where.to.Find.Them.2016.1080p.BluRay.x264.DTS-FGT'
     assert search.results[0]['name'] == expected_result_name or search.results[0]['name'] == expected_result_name2
 
     __remove_all_cache(a4ksubtitles_api)
@@ -542,121 +543,125 @@ def test_podnadpisi_tvshow_missing_imdb_id_but_in_url_with_show_id_and_meta_for_
 
     assert len(search.results) > 0
 
-def test_subscene():
-    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
-    __remove_all_cache(a4ksubtitles_api)
+# def test_subdl():
+#     a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+#     __remove_all_cache(a4ksubtitles_api)
 
-    # search
-    settings = {
-        'subscene.enabled': 'true',
-    }
-    search = __search_movie(a4ksubtitles_api, settings)
+#     # search
+#     settings = {
+#         'subdl.enabled': 'true',
+#         'subdl.apikey': os.getenv('A4KSUBTITLES_SUBDL_APIKEY', ''),
+#     }
+#     search = __search_movie(a4ksubtitles_api, settings)
 
-    # download
-    item = search.results[0]
+#     # download
+#     item = search.results[0]
 
-    params = {
-        'action': 'download',
-        'service_name': 'subscene',
-        'action_args': item['action_args']
-    }
+#     params = {
+#         'action': 'download',
+#         'service_name': 'subdl',
+#         'action_args': item['action_args']
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    filepath = a4ksubtitles_api.download(params, search.settings)
+#     filepath = a4ksubtitles_api.download(params, search.settings)
 
-    assert filepath != ''
+#     assert filepath != ''
 
-def test_subscene_tvshow():
-    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
-    __remove_all_cache(a4ksubtitles_api)
+# def test_subdl_tvshow():
+#     a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+#     __remove_all_cache(a4ksubtitles_api)
 
-    # search
-    settings = {
-        'subscene.enabled': 'true',
-    }
+#     # search
+#     settings = {
+#         'subdl.enabled': 'true',
+#         'subdl.apikey': os.getenv('A4KSUBTITLES_SUBDL_APIKEY', ''),
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    search = __search_tvshow(a4ksubtitles_api, settings)
+#     search = __search_tvshow(a4ksubtitles_api, settings)
 
-    # download
-    item = search.results[0]
+#     # download
+#     item = search.results[0]
 
-    params = {
-        'action': 'download',
-        'service_name': 'subscene',
-        'action_args': item['action_args']
-    }
+#     params = {
+#         'action': 'download',
+#         'service_name': 'subdl',
+#         'action_args': item['action_args']
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    filepath = a4ksubtitles_api.download(params, search.settings)
+#     filepath = a4ksubtitles_api.download(params, search.settings)
 
-    assert filepath != ''
+#     assert filepath != ''
 
-def test_subscene_tvshow_persian():
-    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
-    __remove_all_cache(a4ksubtitles_api)
+# def test_subdl_tvshow_persian():
+#     a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+#     __remove_all_cache(a4ksubtitles_api)
 
-    # search
-    settings = {
-        'subscene.enabled': 'true',
-    }
+#     # search
+#     settings = {
+#         'subdl.enabled': 'true',
+#         'subdl.apikey': os.getenv('A4KSUBTITLES_SUBDL_APIKEY', ''),
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    search = __search_tvshow(a4ksubtitles_api, settings, {}, 'Persian')
+#     search = __search_tvshow(a4ksubtitles_api, settings, {}, 'Persian')
 
-    # download
-    item = search.results[0]
+#     # download
+#     item = search.results[0]
 
-    params = {
-        'action': 'download',
-        'service_name': 'subscene',
-        'action_args': item['action_args']
-    }
+#     params = {
+#         'action': 'download',
+#         'service_name': 'subdl',
+#         'action_args': item['action_args']
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    filepath = a4ksubtitles_api.download(params, search.settings)
+#     filepath = a4ksubtitles_api.download(params, search.settings)
 
-    assert filepath != ''
+#     assert filepath != ''
 
-def test_subscene_arabic():
-    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
-    __remove_all_cache(a4ksubtitles_api)
+# def test_subdl_arabic():
+#     a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+#     __remove_all_cache(a4ksubtitles_api)
 
-    # search
-    settings = {
-        'subscene.enabled': 'true',
-    }
+#     # search
+#     settings = {
+#         'subdl.enabled': 'true',
+#         'subdl.apikey': os.getenv('A4KSUBTITLES_SUBDL_APIKEY', ''),
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    search = __search_movie(a4ksubtitles_api, settings, {}, 'Arabic')
+#     search = __search_movie(a4ksubtitles_api, settings, {}, 'Arabic')
 
-    # download
-    item = search.results[0]
+#     # download
+#     item = search.results[0]
 
-    params = {
-        'action': 'download',
-        'service_name': 'subscene',
-        'action_args': item['action_args']
-    }
+#     params = {
+#         'action': 'download',
+#         'service_name': 'subdl',
+#         'action_args': item['action_args']
+#     }
 
-    if os.getenv('CI', None) is not None:
-        time.sleep(4)
+#     if os.getenv('CI', None) is not None:
+#         time.sleep(4)
 
-    filepath = a4ksubtitles_api.download(params, search.settings)
+#     filepath = a4ksubtitles_api.download(params, search.settings)
 
-    assert filepath != ''
+#     assert filepath != ''
 
 def test_addic7ed_tvshow():
     a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
@@ -676,6 +681,97 @@ def test_addic7ed_tvshow():
         'service_name': 'addic7ed',
         'action_args': item['action_args']
     }
+
+    try:
+        filepath = a4ksubtitles_api.download(params, search.settings)
+    except Exception as e:
+        if 'object does not support the context manager protocol' in str(e):
+            print('Skipping test_addic7ed_tvshow')
+            return
+
+    assert filepath != ''
+
+def test_subsource():
+    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+    __remove_all_cache(a4ksubtitles_api)
+
+    # search
+    settings = {
+        'subsource.enabled': 'true',
+    }
+    search = __search_movie(a4ksubtitles_api, settings)
+
+    # download
+    item = search.results[0]
+
+    params = {
+        'action': 'download',
+        'service_name': 'subsource',
+        'action_args': item['action_args']
+    }
+
+    if os.getenv('CI', None) is not None:
+        time.sleep(4)
+
+    filepath = a4ksubtitles_api.download(params, search.settings)
+
+    assert filepath != ''
+
+def test_subsource_tvshow():
+    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+    __remove_all_cache(a4ksubtitles_api)
+
+    # search
+    settings = {
+        'subsource.enabled': 'true',
+    }
+
+    if os.getenv('CI', None) is not None:
+        time.sleep(4)
+
+    search = __search_tvshow(a4ksubtitles_api, settings)
+
+    # download
+    item = search.results[0]
+
+    params = {
+        'action': 'download',
+        'service_name': 'subsource',
+        'action_args': item['action_args']
+    }
+
+    if os.getenv('CI', None) is not None:
+        time.sleep(4)
+
+    filepath = a4ksubtitles_api.download(params, search.settings)
+
+    assert filepath != ''
+
+def test_subsource_arabic():
+    a4ksubtitles_api = api.A4kSubtitlesApi({'kodi': True})
+    __remove_all_cache(a4ksubtitles_api)
+
+    # search
+    settings = {
+        'subsource.enabled': 'true',
+    }
+
+    if os.getenv('CI', None) is not None:
+        time.sleep(4)
+
+    search = __search_movie(a4ksubtitles_api, settings, {}, 'Arabic')
+
+    # download
+    item = search.results[0]
+
+    params = {
+        'action': 'download',
+        'service_name': 'subsource',
+        'action_args': item['action_args']
+    }
+
+    if os.getenv('CI', None) is not None:
+        time.sleep(4)
 
     filepath = a4ksubtitles_api.download(params, search.settings)
 

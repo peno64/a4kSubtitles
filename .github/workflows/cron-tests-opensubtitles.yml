@@ -14,12 +14,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: setup-python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.11
 
     - name: install
       run: |
@@ -27,5 +27,7 @@ jobs:
         python -m pip install -r requirements.txt
 
     - name: test
+      env:
+        A4KSUBTITLES_SUBDL_APIKEY: ${{ secrets.A4KSUBTITLES_SUBDL_APIKEY }}
       run: |
         pytest -v -k 'test_opensubtitles' ./tests/test_suite.py
