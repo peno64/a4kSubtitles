@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 
-__api = "https://api.subsource.net/api/"
+__api = "https://api.subsource.net/api/v1"
 
-__getMovie = __api + "getMovie"
-__getSub = __api + "getSub"
-__search = __api + "searchMovie"
-__download = __api + "downloadSub/"
+__search = __api + "/movies/search"
+__getSub = __api + "/subtitles"
 
 ss_to_code = {
     "Big 5 code": "zh",
@@ -22,35 +20,50 @@ ss_to_code = {
 }
 
 def build_search_requests(core, service_name, meta):
+    apikey = core.kodi.get_setting(service_name, 'apikey')
+
+    if not apikey:
+        core.kodi.notification('Subsource requires API Key! Insert it in the addon Settings->Accounts or disable the service.')
+        core.logger.error('%s - API Key is missing' % service_name)
+        return []
+
+    headers = {"X-API-Key": apikey}
+
     def get_movie(response):
         results = response.json()
-        found = results.get("found", [])
-        movie_name = ""
-        seasons = []
+
+        if "error" in results:
+            return core.logger.error("%s - %s" % (service_name, results["message"]))
+
+        found = results.get("data", [])
+        first_season_id = None
+        movie_id = None
 
         for res in found:
-            incorrect_type = res.get("type", "Movie") == "Movie" and meta.is_tvshow
-            incorrect_movie = meta.is_movie and meta.imdb_id and res.get("imdb") and res["imdb"] != meta.imdb_id
-            if incorrect_type or incorrect_movie:
+            if meta.is_movie and meta.imdb_id and "imdbId" in res and res["imdbId"] != meta.imdb_id:
                 continue
-            movie_name = res["linkName"]
-            seasons = res.get("seasons")
+
+            if res.get("season") == 1:
+                first_season_id = res["movieId"]
+            if meta.is_tvshow and meta.season != str(res.get("season")):
+                continue
+
+            movie_id = res["movieId"]
             break
 
-        params = {"movieName": movie_name, "langs": meta.languages}
-        if meta.is_tvshow:
-            season = seasons[0].get("number") if len(seasons) == 1 else meta.season
-            params["season"] = "season-" + str(season)
-        return {"method": "POST", "url": __getMovie, "data": params}
+        params = {"movieId": movie_id or first_season_id, "language": ",".join(meta.languages).lower()}
+
+        return {"method": "GET", "url": __getSub, "params": params, "headers": headers}
 
     name = (meta.title if meta.is_movie else meta.tvshow)
     year = meta.tvshow_year if meta.is_tvshow else meta.year
 
-    params = {"query": name + " " + year}
+    params = {"searchType": "text", "q": name, "year": year, "type": "tvseries" if meta.is_tvshow else "movie"}
     request = {
-        "method": "POST",
+        "method": "GET",
         "url": __search,
-        "data": params,
+        "params": params,
+        "headers": headers,
         "next": lambda gm: get_movie(gm)
     }
     return [request]
@@ -65,12 +78,12 @@ def parse_search_response(core, service_name, meta, response):
 
     service = core.services[service_name]
 
-    if "subs" not in results:
+    if "success" not in results or not results["success"]:
         return []
 
     def map_result(result):
-        name = result.get("releaseName", "")
-        lang = result.get("lang")
+        name = result.get("releaseInfo", [""])[0]
+        lang = result.get("language", "").capitalize()
 
         if lang in ss_to_code:
             lang = core.kodi.xbmc.convertLanguage(ss_to_code[lang], core.kodi.xbmc.ENGLISH_NAME)
@@ -78,7 +91,8 @@ def parse_search_response(core, service_name, meta, response):
         if lang not in meta.languages:
             return None
 
-        rating = result.get("rating", 0)
+        rating = result.get("rating", {}).get("total", 0)
+
         lang_code = core.utils.get_lang_id(lang, core.kodi.xbmc.ISO_639_1)
         return {
             "service_name": service_name,
@@ -87,34 +101,27 @@ def parse_search_response(core, service_name, meta, response):
             "name": name,
             "rating": rating,
             "lang_code": lang_code,
-            "sync": "true" if meta.filename_without_ext in result["releaseName"] else "false",
-            "impaired": "true" if result.get("hi", 0) != 0 else "false",
+            "sync": "true" if meta.filename_without_ext in name else "false",
+            "impaired": "true" if result.get("hearingImpaired") else "false",
             "color": "teal",
             "action_args": {
-                "url": "{}#{}".format(result["subId"], name),
+                "url": "{}#{}".format(result["subtitleId"], name),
                 "lang": lang,
                 "filename": name,
-                "full_link": result["fullLink"],
+                "full_link": result["link"],
             },
         }
 
-    return list(map(map_result, results["subs"]))
+    return list(map(map_result, results["data"]))
 
 
 def build_download_request(core, service_name, args):
-    *_, movie, lang, sub_id = args["full_link"].split("/")
-    params = {"movie": movie, "lang": lang, "id": sub_id}
-
-    def downloadsub(response):
-        result = response.json()
-        download_token = result["sub"]["downloadToken"]
-        return {"method": "GET", "url": __download + download_token, "stream": True}
-
+    subtitle_id = args["full_link"].split("/")[-1]
     request = {
-        "method": "POST",
-        "url": __getSub,
-        "data": params,
-        "next": lambda dw: downloadsub(dw)
+        "method": "GET",
+        "headers": {"X-API-Key": core.kodi.get_setting(service_name, 'apikey')},
+        "url": "/".join([__getSub, subtitle_id, "download"]),
+        "stream": True
     }
 
     return request
